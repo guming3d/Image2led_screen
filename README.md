@@ -1,5 +1,20 @@
 ***Image to LED Screen***
+### What the code does & why it matches your three-step spec
 
+| Your Step | Code Section | How it’s implemented |
+|-----------|--------------|----------------------|
+| **1. Segmentation & control map** | `largest_mask`, `canny_map` |  • Segment-Anything automatically extracts masks; we keep the largest object.<br> • OpenCV’s Canny detector converts the same frame into a structural guide image (edge map). |
+| **2. Stylization with SD + ControlNet** | `stylize` | Uses Hugging-Face **`StableDiffusionControlNetInpaintPipeline`** so the mask AND the Canny map are honoured simultaneously. The ControlNet weight *sd-controlnet-canny* is loaded once and reused.  ([ControlNet - Hugging Face](https://huggingface.co/docs/diffusers/v0.32.2/en/api/pipelines/controlnet?utm_source=chatgpt.com)) |
+| **3. Post-processing** | `led_quantise` | • Lanczos resize to **60 × 60**.<br> • Palette reduced to 32 colours, then per-pixel brightness rounded to 8 discrete levels, matching a typical RGB LED matrix driver. |
+
+---
+
+#### Tips & customisation
+
+* **Prompt-tuning** Swap `prompt` / `neg_prompt` strings or add LoRAs to get a different cartoon style.  
+* **Edge type** Replace the `CTRL_MODEL` (e.g. `"lllyasviel/sd-controlnet-lineart"`) and generate a line-art guide instead of Canny.  
+* **Mask selection** If the biggest SAM mask isn’t what you want, change the logic (e.g. use click-guided SAM to pick a region interactively).  
+* **LED driver format** If your hardware needs raw bytes, just convert `led_ready` to `"P"` mode and `tobytes()` or export RGB565.
 It uses the *diffusers* library for Stable-Diffusion + ControlNet, Meta’s **Segment-Anything** for automatic masking, OpenCV for generating the Canny edge control map, and Pillow/NumPy for LED-matrix post-processing.
 
 ```bash
@@ -112,22 +127,7 @@ if __name__ == "__main__":
 
 ---
 
-### What the code does & why it matches your three-step spec
 
-| Your Step | Code Section | How it’s implemented |
-|-----------|--------------|----------------------|
-| **1. Segmentation & control map** | `largest_mask`, `canny_map` |  • Segment-Anything automatically extracts masks; we keep the largest object.<br> • OpenCV’s Canny detector converts the same frame into a structural guide image (edge map). |
-| **2. Stylization with SD + ControlNet** | `stylize` | Uses Hugging-Face **`StableDiffusionControlNetInpaintPipeline`** so the mask AND the Canny map are honoured simultaneously. The ControlNet weight *sd-controlnet-canny* is loaded once and reused.  ([ControlNet - Hugging Face](https://huggingface.co/docs/diffusers/v0.32.2/en/api/pipelines/controlnet?utm_source=chatgpt.com)) |
-| **3. Post-processing** | `led_quantise` | • Lanczos resize to **60 × 60**.<br> • Palette reduced to 32 colours, then per-pixel brightness rounded to 8 discrete levels, matching a typical RGB LED matrix driver. |
-
----
-
-#### Tips & customisation
-
-* **Prompt-tuning** Swap `prompt` / `neg_prompt` strings or add LoRAs to get a different cartoon style.  
-* **Edge type** Replace the `CTRL_MODEL` (e.g. `"lllyasviel/sd-controlnet-lineart"`) and generate a line-art guide instead of Canny.  
-* **Mask selection** If the biggest SAM mask isn’t what you want, change the logic (e.g. use click-guided SAM to pick a region interactively).  
-* **LED driver format** If your hardware needs raw bytes, just convert `led_ready` to `"P"` mode and `tobytes()` or export RGB565.
 
 Run it:
 
