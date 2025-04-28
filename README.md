@@ -1,21 +1,95 @@
 ***Image to LED Screen***
 ### What the code does & why it matches your three-step spec
 
-| Your Step | Code Section | How it’s implemented |
+| Your Step | Code Section | How it's implemented |
 |-----------|--------------|----------------------|
-| **1. Segmentation & control map** | `largest_mask`, `canny_map` |  • Segment-Anything automatically extracts masks; we keep the largest object.<br> • OpenCV’s Canny detector converts the same frame into a structural guide image (edge map). |
+| **1. Segmentation & control map** | `largest_mask`, `canny_map` |  • Segment-Anything automatically extracts masks; we keep the largest object.<br> • OpenCV's Canny detector converts the same frame into a structural guide image (edge map). |
 | **2. Stylization with SD + ControlNet** | `stylize` | Uses Hugging-Face **`StableDiffusionControlNetInpaintPipeline`** so the mask AND the Canny map are honoured simultaneously. The ControlNet weight *sd-controlnet-canny* is loaded once and reused.  ([ControlNet - Hugging Face](https://huggingface.co/docs/diffusers/v0.32.2/en/api/pipelines/controlnet?utm_source=chatgpt.com)) |
 | **3. Post-processing** | `led_quantise` | • Lanczos resize to **60 × 60**.<br> • Palette reduced to 32 colours, then per-pixel brightness rounded to 8 discrete levels, matching a typical RGB LED matrix driver. |
 
 ---
 
+### System Requirements
+
+#### Hardware Requirements
+The code has been tested on the following hardware setup:
+```
+NVIDIA-SMI 535.183.01             Driver Version: 535.183.01   CUDA Version: 12.2     
++------------------------------------------------------------------------+
+| GPU  Name                 Persistence-M | Bus-Id        Disp.A | ECC   |
+| Fan  Temp   Perf          Pwr:Usage/Cap |         Memory-Usage | Util  |
++========================================================================+
+|   0  Tesla T4                       Off | 00000001:00:00.0 Off | Off   |
+| N/A   37C    P0              49W /  70W |    385MiB / 16384MiB | 67%   |
++------------------------------------------------------------------------+
+```
+
+#### Dependencies
+The exact versions of libraries used in this project are locked in the `requirements.txt` file:
+```
+diffusers==0.33.1
+numpy==2.1.2
+opencv-python==4.11.0.86
+pillow==11.0.0
+segment-anything==1.0
+torch==2.5.1+cu121
+torchvision==0.20.1+cu121
+xformers==0.0.29.post1
+```
+
 #### Tips & customisation
 
-* **Prompt-tuning** Swap `prompt` / `neg_prompt` strings or add LoRAs to get a different cartoon style.  
-* **Edge type** Replace the `CTRL_MODEL` (e.g. `"lllyasviel/sd-controlnet-lineart"`) and generate a line-art guide instead of Canny.  
-* **Mask selection** If the biggest SAM mask isn’t what you want, change the logic (e.g. use click-guided SAM to pick a region interactively).  
-* **LED driver format** If your hardware needs raw bytes, just convert `led_ready` to `"P"` mode and `tobytes()` or export RGB565.
-It uses the *diffusers* library for Stable-Diffusion + ControlNet, Meta’s **Segment-Anything** for automatic masking, OpenCV for generating the Canny edge control map, and Pillow/NumPy for LED-matrix post-processing.
+* **Prompt-tuning** Swap `prompt` / `neg_prompt` strings or add LoRAs to get a different cartoon style.  
+* **Edge type** Replace the `CTRL_MODEL` (e.g. `"lllyasviel/sd-controlnet-lineart"`) and generate a line-art guide instead of Canny.  
+* **Mask selection** If the biggest SAM mask isn't what you want, change the logic (e.g. use click-guided SAM to pick a region interactively).  
+* **LED driver format** If your hardware needs raw bytes, just convert `led_ready` to `"P"` mode and `tobytes()` or export RGB565.
+* **Memory Optimization** Use the `--cpu` flag if you're experiencing GPU memory issues (will be slower but more reliable).
+
+---
+
+### Installation
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/yourusername/Image2led_screen.git
+cd Image2led_screen
+
+# 2. Create a virtual environment
+python -m venv .venv
+source .venv/bin/activate   # On Windows: .venv\Scripts\activate
+
+# 3. Install dependencies
+pip install -r requirements.txt
+
+# 4. Download SAM model checkpoint
+wget https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth
+```
+
+### Usage
+
+Basic usage:
+```bash
+python cartoonize_led.py ./images/your_image.jpg
+```
+
+To force CPU mode (for memory issues):
+```bash
+python cartoonize_led.py ./images/your_image.jpg --cpu
+```
+
+You'll get `results/your_image_led.png`—ready to stream straight to your 60×60 matrix.
+
+---
+
+### Memory Optimization Features
+
+The code includes several memory optimization techniques:
+1. Automatic resizing of large input images
+2. Sequential CPU offloading for model components
+3. Attention and VAE slicing
+4. Memory-efficient attention with xformers
+5. Reduced inference steps (20 instead of 30)
+6. Option to run on CPU when GPU memory is insufficient
 
 ```bash
 # 1.  (One-time) install the required packages
@@ -135,4 +209,4 @@ Run it:
 python cartoon_led_pipeline.py ./input_photo.jpg
 ```
 
-You’ll get `results/input_photo_led.png`—ready to stream straight to your 60×60 matrix.
+You'll get `results/input_photo_led.png`—ready to stream straight to your 60×60 matrix.
