@@ -124,8 +124,7 @@ def stylize(
     return out.images[0]
 
 def led_quantise(img: Image.Image) -> Image.Image:
-    # down-sample
-    img = img.resize(IMG_SIZE_LED, Image.LANCZOS)
+    # Keep original resolution (removed 60×60 down-sampling)
     # 1) colour palette reduction
     img = img.convert("P", palette=Image.ADAPTIVE, colors=PALETTE_COLS).convert("RGB")
     # 2) brightness quantisation
@@ -157,9 +156,19 @@ def cartoonise_to_led(src_path: str | pathlib.Path):
     print("✏️ Creating edge detection map...")
     ctrl = canny_map(src)
     
+    # Save canny map for debugging
+    canny_path = OUT_DIR / f"{pathlib.Path(src_path).stem}_canny.png"
+    ctrl.save(canny_path)
+    print(f"🖼️ Canny map saved to: {canny_path}")
+    
     # Run the stylization pipeline
     print("🎨 Starting stylization (this may take a while)...")
     stylised = stylize(src, mask, ctrl)
+    
+    # Save stylised intermediate image for debugging
+    stylised_path = OUT_DIR / f"{pathlib.Path(src_path).stem}_stylised.png"
+    stylised.save(stylised_path)
+    print(f"🖼️ Stylised image saved to: {stylised_path}")
     
     # Quantize for LED display
     print("📉 Quantizing for LED display...")
@@ -178,7 +187,7 @@ if __name__ == "__main__":
     os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True,max_split_size_mb:128"
     
     # Parse arguments
-    parser = argparse.ArgumentParser(description="Convert image to 60×60 LED-friendly cartoon style.")
+    parser = argparse.ArgumentParser(description="Convert image to LED-friendly cartoon style (preserves original resolution).")
     parser.add_argument("image", help="Path to the source image")
     parser.add_argument("--cpu", action="store_true", help="Force CPU processing (slower but uses less memory)")
     opts = parser.parse_args()
